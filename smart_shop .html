@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Shopping Center</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f7f9fb;
+      color: #333;
+    }
+    header, .tab-buttons {
+      background: #1e88e5;
+      color: white;
+      padding: 12px;
+      text-align: center;
+    }
+    .tab-buttons button {
+      background: #42a5f5;
+      border: none;
+      padding: 10px;
+      margin: 3px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+    }
+    .tab-buttons button.active {
+      background: #1565c0;
+    }
+    .container {
+      padding: 12px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px 0;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #43a047;
+    }
+    .card {
+      background: white;
+      padding: 12px;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin: 10px 0;
+    }
+    .hidden {
+      display: none;
+    }
+    .top-menu {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+    }
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: white;
+      box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+      min-width: 160px;
+      z-index: 1;
+      border-radius: 8px;
+    }
+    .dropdown-content a {
+      color: #333;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+    }
+    .dropdown-content a:hover {
+      background-color: #eee;
+    }
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+    img {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>Smart Shopping Center</h2>
+    <div class="dropdown top-menu">
+      <span style="cursor:pointer;">⋮</span>
+      <div class="dropdown-content">
+        <a href="#" onclick="logout()">Logout</a>
+        <a href="#" onclick="showHistory()">History</a>
+      </div>
+    </div>
+  </header>
+  <div class="container">
+    <div id="authSection">
+      <h3>Login</h3>
+      <select id="loginRole">
+        <option value="admin">Admin</option>
+        <option value="seller">Seller</option>
+        <option value="buyer">Buyer</option>
+      </select>
+      <input type="email" id="loginEmail" placeholder="Email" required />
+      <input type="text" id="loginUsername" placeholder="Username" required />
+      <input type="tel" id="loginPhone" placeholder="Phone Number" required />
+      <input type="password" id="loginPassword" placeholder="Password" required />
+      <button onclick="login()">Login</button>
+      <p><a href="#" onclick="toggleForm()">Register New Account</a></p>
+      <p><a href="#" onclick="forgotPassword()">Forgot Password?</a></p>
+    </div>
+
+    <div id="registerSection" class="hidden">
+      <h3>Register</h3>
+      <select id="registerRole">
+        <option value="seller">Seller</option>
+        <option value="buyer">Buyer</option>
+      </select>
+      <input type="email" id="regEmail" placeholder="Email" required />
+      <input type="text" id="regUsername" placeholder="Username" required />
+      <input type="tel" id="regPhone" placeholder="Phone Number" required />
+      <input type="password" id="regPassword" placeholder="Password" required />
+      <button onclick="register()">Register</button>
+      <p><a href="#" onclick="toggleForm()">Back to Login</a></p>
+    </div>
+
+    <div id="forgotPasswordSection" class="hidden">
+      <h3>Reset Password</h3>
+      <input type="email" id="forgotEmail" placeholder="Enter your email" required />
+      <button onclick="sendReset()">Send Reset Link</button>
+      <p id="resetMessage"></p>
+      <p><a href="#" onclick="backToLogin()">Back to Login</a></p>
+    </div>
+
+    <div id="mainSection" class="hidden">
+      <div class="tab-buttons" id="roleTabs"></div>
+      <div id="roleContent"></div>
+    </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let products = JSON.parse(localStorage.getItem('products') || '[]');
+    let users = JSON.parse(localStorage.getItem('users') || '[]');
+    let orders = JSON.parse(localStorage.getItem('orders') || '[]');
+
+    function toggleForm() {
+      document.getElementById('authSection').classList.toggle('hidden');
+      document.getElementById('registerSection').classList.toggle('hidden');
+    }
+
+    function forgotPassword() {
+      document.getElementById('authSection').classList.add('hidden');
+      document.getElementById('forgotPasswordSection').classList.remove('hidden');
+    }
+
+    function backToLogin() {
+      document.getElementById('forgotPasswordSection').classList.add('hidden');
+      document.getElementById('authSection').classList.remove('hidden');
+    }
+
+    function sendReset() {
+      const email = document.getElementById('forgotEmail').value;
+      const user = users.find(u => u.email === email);
+      const msg = document.getElementById('resetMessage');
+      if (user) {
+        msg.textContent = "A reset link has been sent to your email or phone.";
+      } else {
+        msg.textContent = "Email not found in the system.";
+      }
+    }
+
+    function register() {
+      const role = document.getElementById('registerRole').value;
+      const email = document.getElementById('regEmail').value;
+      const username = document.getElementById('regUsername').value;
+      const phone = document.getElementById('regPhone').value;
+      const password = document.getElementById('regPassword').value;
+
+      if (users.some(u => u.email === email)) {
+        alert("User already exists.");
+        return;
+      }
+
+      users.push({ email, username, phone, password, role });
+      localStorage.setItem('users', JSON.stringify(users));
+      alert("Registered successfully! Now login.");
+      toggleForm();
+    }
+
+    function login() {
+      const role = document.getElementById('loginRole').value;
+      const email = document.getElementById('loginEmail').value;
+      const username = document.getElementById('loginUsername').value;
+      const phone = document.getElementById('loginPhone').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const found = users.find(u =>
+        u.email === email &&
+        u.username === username &&
+        u.phone === phone &&
+        u.password === password &&
+        u.role === role
+      );
+
+      if (!found && role === 'admin') {
+        if (email === 'admin@shop.com' && password === 'dagi15') {
+          currentUser = { email, username: 'MainAdmin', role: 'admin' };
+          showDashboard();
+          return;
+        }
+      }
+
+      if (found) {
+        if (role === 'seller' && !confirm("Do you agree to the 2% commission rule?")) return;
+        currentUser = found;
+        showDashboard();
+      } else {
+        alert("Invalid credentials.");
+      }
+    }
+
+    function logout() {
+      if (confirm("Logout?")) {
+        location.reload();
+      }
+    }
+
+    function showHistory() {
+      const myOrders = orders.filter(o => o.email === currentUser.email);
+      alert("Your order history:\n\n" + myOrders.map(o =>
+        `${o.product} (${o.quantity}) → ${o.status || 'Pending'}`
+      ).join('\n'));
+    }
+
+    function showDashboard() {
+      document.getElementById('authSection').classList.add('hidden');
+      document.getElementById('registerSection').classList.add('hidden');
+      document.getElementById('forgotPasswordSection').classList.add('hidden');
+      document.getElementById('mainSection').classList.remove('hidden');
+
+      const roleTabs = document.getElementById('roleTabs');
+      const roleContent = document.getElementById('roleContent');
+      roleTabs.innerHTML = '';
+      roleContent.innerHTML = '';
+
+      if (currentUser.role === 'admin') {
+        roleTabs.innerHTML = `
+          <button onclick="adminView(0)" class="active">Posted Products</button>
+          <button onclick="adminView(1)">Orders</button>
+          <button onclick="adminView(2)">Accounts</button>
+        `;
+        adminView(0);
+      } else if (currentUser.role === 'seller') {
+        roleTabs.innerHTML = `
+          <button onclick="sellerView(0)" class="active">My Products</button>
+          <button onclick="sellerView(1)">Add Product</button>
+          <button onclick="sellerView(2)">Orders</button>
+        `;
+        sellerView(0);
+      } else if (currentUser.role === 'buyer') {
+        roleTabs.innerHTML = `
+          <button onclick="buyerView(0)" class="active">All Products</button>
+          <button onclick="buyerView(1)">Carted</button>
+          <button onclick="buyerView(2)">Ordered</button>
+        `;
+        buyerView(0);
+      }
+    }
+  </script>
+  <script>
+    function adminView(tab) {
+      const content = document.getElementById('roleContent');
+      document.querySelectorAll('.tab-buttons button').forEach((b, i) =>
+        b.classList.toggle('active', i === tab)
+      );
+
+      if (tab === 0) {
+        content.innerHTML = '<h3>All Posted Products</h3>';
+        products.forEach((p, i) => {
+          content.innerHTML += `
+            <div class="card">
+              <img src="${p.image}" alt="${p.name}" />
+              <p><strong>${p.name}</strong> - ${p.price} ETB</p>
+              <p>${p.description}</p>
+              <p><em>Posted by: ${p.owner}</em></p>
+              <button onclick="deleteProduct(${i})">Delete Product</button>
+            </div>
+          `;
+        });
+      } else if (tab === 1) {
+        content.innerHTML = '<h3>All Orders</h3>';
+        orders.forEach((o, i) => {
+          content.innerHTML += `
+            <div class="card">
+              <p><strong>Product:</strong> ${o.product}</p>
+              <p><strong>From:</strong> ${o.buyerName}</p>
+              <p><strong>Seller (Owner):</strong> ${o.seller}</p> 
+              <p><strong>Phone:</strong> ${o.phone}</p>
+              <p><strong>Address:</strong> ${o.address}</p>
+              <p><strong>Size/Number:</strong> ${o.size}</p>
+              <p><strong>Quantity:</strong> ${o.quantity}</p>
+              <p><strong>Payment:</strong> ${o.payment}</p>
+              <p><strong>Status:</strong> ${o.status || 'Pending'}</p>
+              <button onclick="deleteorder(${i})">Delete order</button>
+            </div>
+          `;
+        });
+      } else if (tab === 2) {
+        content.innerHTML = '<h3>Registered Accounts</h3>';
+        users.forEach((u, i) => {
+          content.innerHTML += `
+            <div class="card">
+              <p><strong>${u.username}</strong> - ${u.role}</p>
+              <p>${u.email} | ${u.phone}</p>
+              <button onclick="deleteUser(${i})">Delete Account</button>
+            </div>
+          `;
+        });
+      }
+    }
+    function deleteorder(index) {
+      if (confirm("Delete this order?")) {
+        orders.splice(index, 1);
+        localStorage.setItem('orders', JSON.stringify(orders));
+        showDashboard();
+      }
+    }
+
+    function deleteProduct(index) {
+      if (confirm("Delete this product?")) {
+        products.splice(index, 1);
+        localStorage.setItem('products', JSON.stringify(products));
+        showDashboard();
+      }
+    }
+
+    function deleteUser(index) {
+      if (confirm("Delete this user?")) {
+        users.splice(index, 1);
+        localStorage.setItem('users', JSON.stringify(users));
+        showDashboard();
+      }
+    }
+
+    function sellerView(tab) {
+      const content = document.getElementById('roleContent');
+      document.querySelectorAll('.tab-buttons button').forEach((b, i) =>
+        b.classList.toggle('active', i === tab)
+      );
+
+      if (tab === 0) {
+        content.innerHTML = '<h3>My Products</h3>';
+        products.filter(p => p.owner === currentUser.username).forEach((p, i) => {
+          content.innerHTML += `
+            <div class="card">
+              <img src="${p.image}" />
+              <p><strong>${p.name}</strong> - ${p.price} ETB</p>
+              <p>${p.description}</p>
+              <button onclick="deleteMyProduct('${p.id}')">Delete</button>
+            </div>
+          `;
+        });
+      } else if (tab === 1) {
+        content.innerHTML = `
+          <h3>Add Product</h3>
+          <input type="text" id="prodName" placeholder="Product Name" />
+          <input type="number" id="prodPrice" placeholder="Price (ETB)" />
+          <textarea id="prodDesc" placeholder="Description"></textarea>
+          <input type="file" accept="image/*" onchange="loadImage(event)" />
+          <img id="previewImg" class="hidden" />
+          <button onclick="addProduct()">Post Product</button>
+        `;
+      } else if (tab === 2) {
+        content.innerHTML = '<h3>Orders Received</h3>';
+        orders.filter(o => o.seller === currentUser.username).forEach((o, i) => {
+          content.innerHTML += `
+            <div class="card">
+              <p><strong>Product:</strong> ${o.product}</p>
+              <p><strong>Buyer:</strong> ${o.buyerName}</p>
+              <p><strong>Phone:</strong> ${o.phone}</p>
+              <p><strong>Address:</strong> ${o.address}</p>
+              <p><strong>Size:</strong> ${o.size}</p>
+              <p><strong>Quantity:</strong> ${o.quantity}</p>
+              <p><strong>Payment:</strong> ${o.payment}</p>
+              <p><strong>Status:</strong> ${o.status || 'Pending'}</p>
+              <button onclick="markSent(${i})">Mark as Sent</button>
+            </div>
+          `;
+        });
+      }
+    }
+
+    function deleteMyProduct(id) {
+      const i = products.findIndex(p => p.id === id);
+      if (i !== -1 && confirm("Delete this product?")) {
+        products.splice(i, 1);
+        localStorage.setItem('products', JSON.stringify(products));
+        showDashboard();
+      }
+    }
+
+    function loadImage(event) {
+      const reader = new FileReader();
+      reader.onload = function () {
+        document.getElementById('previewImg').src = reader.result;
+        document.getElementById('previewImg').classList.remove('hidden');
+      }
+      reader.readAsDataURL(event.target.files[0]);
+    }
+  </script>
+ <script>
+  function addProduct() {
+    const name = document.getElementById('prodName').value.trim();
+    const price = parseFloat(document.getElementById('prodPrice').value);
+    const description = document.getElementById('prodDesc').value.trim();
+    const image = document.getElementById('previewImg').src;
+
+    if (!name || !price || !description || !image || image === '') {
+      alert('Please fill all fields and select an image.');
+      return;
+    }
+
+    const newProduct = {
+      id: Date.now().toString(),
+      name,
+      price,
+      description,
+      image,
+      owner: currentUser.username
+    };
+
+    products.push(newProduct);
+    localStorage.setItem('products', JSON.stringify(products));
+    alert('Product added successfully!');
+    // Clear form
+    document.getElementById('prodName').value = '';
+    document.getElementById('prodPrice').value = '';
+    document.getElementById('prodDesc').value = '';
+    document.getElementById('previewImg').src = '';
+    document.getElementById('previewImg').classList.add('hidden');
+    showDashboard();
+  }
+
+  function markSent(index) {
+    if (confirm('Mark this order as sent?')) {
+      orders[index].status = 'Sent';
+      localStorage.setItem('orders', JSON.stringify(orders));
+      showDashboard();
+    }
+  }
+
+  function buyerView(tab) {
+    const content = document.getElementById('roleContent');
+    document.querySelectorAll('.tab-buttons button').forEach((b, i) =>
+      b.classList.toggle('active', i === tab)
+    );
+
+    if (tab === 0) {
+      content.innerHTML = '<h3>All Products</h3>';
+      products.forEach((p, i) => {
+        content.innerHTML += `
+          <div class="card">
+            <img src="${p.image}" />
+            <p><strong>${p.name}</strong> - ${p.price} ETB</p>
+            <p>${p.description}</p>
+            <p><em>Posted by: ${p.owner}</em></p>
+            <button onclick="addToCart('${p.id}')">Add to Cart</button>
+          </div>
+        `;
+      });
+    } else if (tab === 1) {
+      content.innerHTML = '<h3>My Cart</h3>';
+      const cart = JSON.parse(localStorage.getItem(`cart_${currentUser.email}`) || '[]');
+      if (cart.length === 0) {
+        content.innerHTML += '<p>Your cart is empty.</p>';
+        return;
+      }
+      cart.forEach((item, i) => {
+        content.innerHTML += `
+          <div class="card">
+            <img src="${item.image}" />
+            <p><strong>${item.name}</strong> - ${item.price} ETB</p>
+            <p>Quantity: ${item.quantity}</p>
+            <button onclick="removeFromCart(${i})">Remove from Cart</button>
+          </div>
+        `;
+      });
+      content.innerHTML += `<button onclick="checkout()">Checkout</button>`;
+    } else if (tab === 2) {
+      content.innerHTML = '<h3>My Orders</h3>';
+      const userOrders = orders.filter(o => o.email === currentUser.email);
+      if (userOrders.length === 0) {
+        content.innerHTML += '<p>No orders found.</p>';
+        return;
+      }
+      userOrders.forEach(o => {
+        content.innerHTML += `
+          <div class="card">
+            <img src="${o.image}" />
+            <p><strong>${o.product}</strong> - ${o.price} ETB</p>
+            <p>Quantity: ${o.quantity}</p>
+            <p>Size/Number: ${o.size}</p>
+            <p>Phone: ${o.phone}</p>
+            <p>Address: ${o.address}</p>
+            <p>Payment: ${o.payment}</p>
+            <p>Status: ${o.status || 'Pending'}</p>
+          </div>
+        `;
+      });
+    }
+  }
+
+  function addToCart(productId) {
+    let cart = JSON.parse(localStorage.getItem(`cart_${currentUser.email}`) || '[]');
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    const existing = cart.find(c => c.id === productId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      cart.push({...product, quantity: 1});
+    }
+    localStorage.setItem(`cart_${currentUser.email}`, JSON.stringify(cart));
+    alert('Added to cart!');
+  }
+
+  function removeFromCart(index) {
+    let cart = JSON.parse(localStorage.getItem(`cart_${currentUser.email}`) || '[]');
+    if (confirm('Remove this item from cart?')) {
+      cart.splice(index, 1);
+      localStorage.setItem(`cart_${currentUser.email}`, JSON.stringify(cart));
+      showDashboard();
+    }
+  }
+
+  function checkout() {
+    const cart = JSON.parse(localStorage.getItem(`cart_${currentUser.email}`) || '[]');
+    if (cart.length === 0) {
+      alert('Your cart is empty.');
+      return;
+    }
+    const content = document.getElementById('roleContent');
+    content.innerHTML = `
+      <h3>Checkout</h3>
+      <form id="checkoutForm">
+        <label>Name</label><input type="text" id="buyerName" value="${currentUser.username}" required />
+        <label>Phone Number</label><input type="tel" id="buyerPhone" value="${currentUser.phone}" required />
+        <label>Address</label><textarea id="buyerAddress" required></textarea>
+        <label>Payment Method</label>
+        <select id="buyerPayment" required>
+          <option value="">Select</option>
+          <option value="CBE Mobile Banking">CBE Mobile Banking</option>
+          <option value="Telebirr">Telebirr</option>
+          <option value="Cash">Cash</option>
+        </select>
+        <div id="orderItems"></div>
+        <button type="submit">Place Order</button>
+        <button type="button" onclick="showDashboard()">Cancel</button>
+      </form>
+    `;
+    const orderItemsDiv = document.getElementById('orderItems');
+    cart.forEach((item, i) => {
+      orderItemsDiv.innerHTML += `
+        <fieldset>
+          <legend>${item.name} (Price: ${item.price} ETB)</legend>
+          <label>Size/Number</label><input type="text" name="size_${i}" required />
+          <label>Quantity</label><input type="number" name="quantity_${i}" min="1" max="100" value="${item.quantity}" required />
+          <input type="hidden" name="prodId_${i}" value="${item.id}" />
+        </fieldset>
+      `;
+    });
+
+    document.getElementById('checkoutForm').onsubmit = function(e) {
+      e.preventDefault();
+      placeOrder(cart);
+    };
+  }
+
+  function placeOrder(cart) {
+    const name = document.getElementById('buyerName').value.trim();
+    const phone = document.getElementById('buyerPhone').value.trim();
+    const address = document.getElementById('buyerAddress').value.trim();
+    const payment = document.getElementById('buyerPayment').value;
+
+    if (!name || !phone || !address || !payment) {
+      alert('Please fill all checkout fields.');
+      return;
+    }
+
+    let valid = true;
+    const sizes = [];
+    const quantities = [];
+
+    for(let i = 0; i < cart.length; i++) {
+      const size = document.querySelector(`input[name="size_${i}"]`).value.trim();
+      const quantity = parseInt(document.querySelector(`input[name="quantity_${i}"]`).value);
+      if (!size || quantity < 1) {
+        valid = false;
+        break;
+      }
+      sizes.push(size);
+      quantities.push(quantity);
+    }
+    if (!valid) {
+      alert('Please provide valid size and quantity for all items.');
+      return;
+    }
+
+    cart.forEach((item, i) => {
+      const order = {
+        id: Date.now().toString() + '_' + i,
+        email: currentUser.email,
+        buyerName: name,
+        phone,
+        address,
+        payment,
+        product: item.name,
+        price: item.price,
+        quantity: quantities[i],
+        size: sizes[i],
+        image: item.image,
+        seller: item.owner,
+        status: 'Pending',
+        orderTime: new Date().toISOString()
+      };
+      orders.push(order);
+    });
+
+    localStorage.setItem('orders', JSON.stringify(orders));
+    localStorage.setItem(`cart_${currentUser.email}`, JSON.stringify([]));
+    alert('Order placed successfully!');
+    showDashboard();
+  }
+</script>
+</body>
+</html> 
